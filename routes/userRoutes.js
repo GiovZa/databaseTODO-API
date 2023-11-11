@@ -84,34 +84,24 @@ module.exports = function (router) {
     userByIdRoute.put(async function (req, res, next) {
         try {
             const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
             if (!user) {
                 return res.status(404).json({ message: '404 User Not Found', data: {} });
-            }
-    
-            // Check if pendingTasks are provided and is an array
+            } 
+
             if (req.body.pendingTasks && Array.isArray(req.body.pendingTasks)) {
-                // Update the assignedUser and assignedUserName in each Task
-                const tasksUpdates = req.body.pendingTasks.map(taskId => 
-                    Task.findByIdAndUpdate(taskId, { 
-                        assignedUser: user._id, 
-                        assignedUserName: user.name 
-                    }, { new: true })
-                );
-    
-                // Execute all the task updates
-                await Promise.all(tasksUpdates);
-    
                 // Update user's pendingTasks
                 user.pendingTasks = req.body.pendingTasks;
                 await user.save();
             }
-    
+
             res.status(200).json({ message: '200 User Updated', data: user });
+
         } catch (err) {
             next(err);
         }
     });
-
+    
     // DELETE for users/:id endpoint
     userByIdRoute.delete(async function (req, res, next) {
         try {

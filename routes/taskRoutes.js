@@ -83,48 +83,46 @@ module.exports = function (router) {
     // PUT for tasks/:id endpoint
     taskByIdRoute.put(async function (req, res, next) {
         try {
-            const task = await Task.findById(req.params.id);
+            const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
             if (!task) {
-                return res.status(404).json({ message: '404 Task Not Found', data: {} });
+                return res.status(404).json({ message: 'Task Not Found', data: {} });
             }
     
-            if (req.body.assignedUser) {
-                const newUserId = req.body.assignedUser;
-                const newUser = await User.findById(newUserId);
-                if (!newUser) {
-                    return res.status(404).json({ message: '404 User Not Found', data: {} });
-                }
-    
-                // Remove task from previous user's pendingTasks if it was assigned
-                if (task.assignedUser && task.assignedUser.toString() !== newUserId) {
-                    const prevUser = await User.findById(task.assignedUser);
-                    if (prevUser) {
-                        prevUser.pendingTasks.pull(task._id);
-                        await prevUser.save();
-                    }
-                }
-    
-                // Add task to new user's pendingTasks
-                if (!newUser.pendingTasks.includes(task._id)) {
-                    newUser.pendingTasks.push(task._id);
-                    await newUser.save();
-                }
-    
-                // Update task details including assignedUser
-                Object.assign(task, req.body, { assignedUser: newUser._id, assignedUserName: newUser.name });
-                await task.save();
-            } else {
-                // Update task without changing assignedUser
-                Object.assign(task, req.body);
-                await task.save();
+            // Check if assignedUser is provided in the request body
+            if (!req.body.assignedUser) {
+                return res.status(200).json({ message: 'Task Updated', data: task });
             }
     
-            res.status(200).json({ message: '200 Task Updated', data: task });
+            const user = await User.findById(req.body.assignedUser);
+            if (!user) {
+                return res.status(404).json({ message: 'User Not Found', data: {} });
+            }
+    
+            // Handle the case where the task was previously assigned to a different user
+            if (task.assignedUser && task.assignedUser.toString() !== user._id.toString()) {
+                const prevUser = await User.findById(task.assignedUser);
+                if (!prevUser) {
+                    return res.status(404).json({ message: 'Previous User Not Found', data: {} });
+                }
+                prevUser.pendingTasks.pull(task._id);
+                await prevUser.save();
+            }
+    
+            // Update the task with the new user's information
+            task.assignedUser = user._id;
+            task.assignedUserName = user.name;
+            
+            // Add task to the new user's pendingTasks if not already present
+            if (!user.pendingTasks.includes(task._id)) {
+                user.pendingTasks.push(task._id);
+            }
+            
+            await Promise.all([user.save(), task.save()]);
+            res.status(200).json({ message: 'Task Updated', data: task });
         } catch (err) {
             next(err);
         }
-    });
-    
+    });    
 
     // DELETE for tasks/:id endpoint
     taskByIdRoute.delete(async function (req, res, next) {
