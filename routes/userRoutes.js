@@ -49,8 +49,23 @@ module.exports = function (router) {
     // POST for users endpoint
     userRoute.post(async function (req, res, next) {
         try {
+            // Create a new user instance
             const newUser = new User(req.body);
             const user = await newUser.save();
+
+            // Check if there are any tasks assigned to this user (by ID)
+            if (req.body.assignedTasks && req.body.assignedTasks.length > 0) {
+                for (const taskId of req.body.assignedTasks) {
+                    const task = await Task.findById(taskId);
+
+                    if (task) {
+                        task.assignedUser = user._id;
+                        task.assignedUserName = user.name;
+                        await task.save();
+                    }
+                }
+            }
+
             res.status(201).json({ message: '201 User Created', data: user });
         } catch (err) {
             next(err);
