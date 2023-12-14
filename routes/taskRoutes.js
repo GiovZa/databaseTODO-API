@@ -47,10 +47,30 @@ module.exports = function (router) {
     });
 
     // POST for tasks endpoint
+    var taskRoute = router.route('/tasks');
     taskRoute.post(async function (req, res, next) {
         try {
+            // Create a new task instance
             const newTask = new Task(req.body);
+
+            // Check if a user is assigned to the task
+            if (newTask.assignedUser) {
+                // Find the user and update task's assignedUserName
+                const user = await User.findById(newTask.assignedUser);
+                if (user) {
+                    newTask.assignedUserName = user.name;
+                    
+                    // Also update user's pendingTasks array
+                    user.pendingTasks.push(newTask._id);
+                    await user.save();
+                } else {
+                    newTask.assignedUserName = 'unassigned';
+                }
+            }
+
+            // Save the task
             const task = await newTask.save();
+
             res.status(201).json({ message: '201 Task Created', data: task });
         } catch (err) {
             next(err);
