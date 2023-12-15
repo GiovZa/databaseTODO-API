@@ -54,18 +54,18 @@ module.exports = function (router) {
             const user = await newUser.save();
 
             // Check if there are any tasks assigned to this user (by ID)
-            if (newUser.assignedTasks) {
-                for (const taskId of newUser.assignedTasks) {
+            if (req.body.pendingTasks.length > 0) {
+                for (const taskId of req.body.pendingTasks) {
                     const task = await Task.findById(taskId);
 
                     if (task) {
                     task.assignedUser = user._id;
                     task.assignedUserName = user.name;
-                    //await task.save();
-                    task = await Task.findByIdAndUpdate(taskId, {
-                        assignedUser: user._id,
-                        assignedUserName: user.name
-                      }, {new: true});                    
+                    await task.save();
+                    //task = await Task.findByIdAndUpdate(taskId, {
+                    //    assignedUser: user._id,
+                    //    assignedUserName: user.name
+                    //  }, {new: true});                    
                     }
                 }
             }
